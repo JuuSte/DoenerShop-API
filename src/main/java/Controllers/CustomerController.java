@@ -14,6 +14,22 @@ import java.util.List;
 @RequestMapping("/kunden")
 public class CustomerController {
 
+    @PersistenceContext
+    private EntityManager em;
+
+    @GetMapping
+    public List<Customer> getAllKunden(){
+        return em.createQuery("SELECT c FROM Customer c", Customer.class)
+                .getResultList();
+    }
+
+    @GetMapping("/kunden/{id}")
+    public Customer getCustomerById(@PathVariable("id") Long id){
+        return em.createQuery("select c from Customer c where c.id = :Id", Customer.class)
+                .setParameter("Id", id)
+                .getSingleResult();
+    }
+
 
 
 
