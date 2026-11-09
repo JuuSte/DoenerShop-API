@@ -1,5 +1,5 @@
 
-package at.htl.donershop.entity;
+package Entities;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
