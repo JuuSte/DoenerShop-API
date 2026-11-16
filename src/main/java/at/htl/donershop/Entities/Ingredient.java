@@ -1,10 +1,10 @@
 
-package Entities;
+package at.htl.donershop.Entities;
 
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "ingredients")
+@Table(name = "ingredient")
 public class Ingredient {
 
     @Id

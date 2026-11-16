@@ -1,9 +1,9 @@
 
-package Controllers;
+package at.htl.donershop.Controllers;
 
-import Entities.Ingredient;
-import Entities.Product;
-import Entities.ProductIngredient;
+import at.htl.donershop.Entities.Ingredient;
+import at.htl.donershop.Entities.Product;
+import at.htl.donershop.Entities.ProductIngredient;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
@@ -49,8 +49,7 @@ public class ProductIngredientController {
                 data.getProduct().getId() == null ||
                 data.getIngredient() == null ||
                 data.getIngredient().getId() == null ||
-                data.getQuantity() == null ||
-                data.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                data.getQuantity() <= 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Ungültige Eingabe");
         }

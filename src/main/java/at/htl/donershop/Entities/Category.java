@@ -1,10 +1,10 @@
 
-package Entities;
+package at.htl.donershop.Entities;
 
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "categories")
+@Table(name = "category")
 public class Category {
 
     @Id
