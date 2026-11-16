@@ -1,11 +1,11 @@
 
-package Entities;
+package at.htl.donershop.Entities;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "product_ingredients")
+@Table(name = "product_ingredient")
 public class ProductIngredient {
 
     @Id
@@ -20,7 +20,7 @@ public class ProductIngredient {
     @JoinColumn(name = "ingredient_id")
     private Ingredient ingredient;
 
-    private BigDecimal quantity;
+    private double quantity;
 
     public ProductIngredient() {}
 
@@ -48,11 +48,11 @@ public class ProductIngredient {
         this.ingredient = ingredient;
     }
 
-    public BigDecimal getQuantity() {
+    public double getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(BigDecimal quantity) {
+    public void setQuantity(double quantity) {
         this.quantity = quantity;
     }
 }

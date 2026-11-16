@@ -1,8 +1,8 @@
 
-package Controllers;
+package at.htl.donershop.Controllers;
 
-import Entities.Category;
-import Entities.Product;
+import at.htl.donershop.Entities.Category;
+import at.htl.donershop.Entities.Product;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
