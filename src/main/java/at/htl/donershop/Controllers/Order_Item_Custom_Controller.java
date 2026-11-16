@@ -62,6 +62,8 @@ public class Order_Item_Custom_Controller {
             );
         }
 
+        ensureOrderOpen(order);
+
         if (request.quantity() == null || request.quantity() < 1
                 || request.unitPrice() < 0) {
             throw new ResponseStatusException(
@@ -91,6 +93,7 @@ public class Order_Item_Custom_Controller {
             @RequestBody CustomOrderItemRequest request
     ) {
         Order_Item_Custom item = getCustomOrderItemById(id);
+        ensureOrderOpen(item.getOrder());
 
         Product product = em.find(Product.class, request.productId());
 
@@ -120,8 +123,17 @@ public class Order_Item_Custom_Controller {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCustomOrderItem(@PathVariable Long id) {
         Order_Item_Custom item = getCustomOrderItemById(id);
+        ensureOrderOpen(item.getOrder());
 
         item.getOrder().getCustomItems().remove(item);
         em.remove(item);
+    }
+
+    private void ensureOrderOpen(Order order) {
+        if (!"OPEN".equalsIgnoreCase(order.getStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Bestellpositionen können nach der Bestätigung nicht mehr geändert werden");
+        }
     }
 }

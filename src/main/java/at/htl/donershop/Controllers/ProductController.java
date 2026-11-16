@@ -1,8 +1,9 @@
-
 package at.htl.donershop.Controllers;
 
 import at.htl.donershop.Entities.Category;
 import at.htl.donershop.Entities.Product;
+import at.htl.donershop.Entities.ProductIngredient;
+import at.htl.donershop.Entities.Inventory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
@@ -11,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 @RestController
 @RequestMapping("/api/products")
@@ -36,6 +40,46 @@ public class ProductController {
         }
 
         return product;
+    }
+
+
+    @GetMapping("/{id}/availability")
+    public Map<String, Object> checkAvailability(@PathVariable Long id) {
+        Product product = getById(id);
+
+        List<ProductIngredient> recipe = em.createQuery(
+                "SELECT pi FROM ProductIngredient pi WHERE pi.product.id = :id",
+                ProductIngredient.class
+        ).setParameter("id", id).getResultList();
+
+        List<Map<String, Object>> missing = new ArrayList<>();
+        for (ProductIngredient item : recipe) {
+            List<Inventory> stock = em.createQuery(
+                    "SELECT i FROM Inventory i WHERE i.ingredient.id = :ingredientId",
+                    Inventory.class
+            ).setParameter("ingredientId", item.getIngredient().getId()).getResultList();
+
+            double available = stock.isEmpty() ? 0 : stock.get(0).getQuantity();
+            if (available < item.getQuantity()) {
+                Map<String, Object> shortage = new LinkedHashMap<>();
+                shortage.put("ingredient", item.getIngredient().getName());
+                shortage.put("required", item.getQuantity());
+                shortage.put("available", available);
+                shortage.put("unit", item.getIngredient().getUnit());
+                missing.add(shortage);
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("productId", product.getId());
+        result.put("productName", product.getName());
+        result.put("available", !recipe.isEmpty() && missing.isEmpty());
+        result.put("message", recipe.isEmpty()
+                ? "Für dieses Produkt wurden noch keine Zutaten hinterlegt."
+                : (missing.isEmpty() ? "Alle Zutaten sind ausreichend vorhanden."
+                : "Nicht genügend Zutaten auf Lager."));
+        result.put("missingIngredients", missing);
+        return result;
     }
 
     @PostMapping

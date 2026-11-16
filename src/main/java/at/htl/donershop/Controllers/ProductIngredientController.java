@@ -1,4 +1,3 @@
-
 package at.htl.donershop.Controllers;
 
 import at.htl.donershop.Entities.Ingredient;
@@ -74,6 +73,37 @@ public class ProductIngredientController {
         em.flush();
 
         return data;
+    }
+
+
+    @PutMapping("/{id}")
+    @Transactional
+    public ProductIngredient update(@PathVariable Long id,
+                                   @RequestBody ProductIngredient updated) {
+        ProductIngredient pi = em.find(ProductIngredient.class, id);
+        if (pi == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Zuordnung nicht gefunden");
+        }
+
+        if (updated.getProduct() == null || updated.getProduct().getId() == null ||
+                updated.getIngredient() == null || updated.getIngredient().getId() == null ||
+                updated.getQuantity() <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Ungültige Eingabe");
+        }
+
+        Product product = em.find(Product.class, updated.getProduct().getId());
+        Ingredient ingredient = em.find(Ingredient.class, updated.getIngredient().getId());
+        if (product == null || ingredient == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Produkt oder Zutat existiert nicht");
+        }
+
+        pi.setProduct(product);
+        pi.setIngredient(ingredient);
+        pi.setQuantity(updated.getQuantity());
+        return pi;
     }
 
     @DeleteMapping("/{id}")
