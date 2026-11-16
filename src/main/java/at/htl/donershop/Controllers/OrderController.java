@@ -68,6 +68,8 @@ public class OrderController {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Eine neue Bestellung muss mit dem Status OPEN erstellt werden");
+        if (request.status() != null && !request.status().isBlank()) {
+            order.setStatus(request.status());
         }
 
         em.persist(order);
@@ -110,9 +112,16 @@ public class OrderController {
             Customer customer = em.find(Customer.class, request.customerId());
             if (customer == null) {
                 throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Kunde nicht gefunden"
+                );
                         HttpStatus.NOT_FOUND, "Kunde nicht gefunden");
             }
+
             order.setKunde(customer);
+        }
+
+        if (request.status() != null) {
+            order.setStatus(request.status());
         }
 
         return order;
