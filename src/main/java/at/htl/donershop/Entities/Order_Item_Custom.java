@@ -50,7 +50,6 @@ public class Order_Item_Custom {
         return order;
     }
 
-    // Nur die ID ausgeben, damit das Frontend Positionen einer Bestellung zuordnen kann
     public Long getOrderId() {
         return order == null ? null : order.getId();
     }

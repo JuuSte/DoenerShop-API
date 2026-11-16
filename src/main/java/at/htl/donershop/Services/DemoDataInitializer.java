@@ -15,7 +15,6 @@ import java.time.LocalDate;
 @Component
 @ConditionalOnProperty(name = "app.demo.enabled", havingValue = "true", matchIfMissing = true)
 public class DemoDataInitializer implements ApplicationRunner {
-    // Feste Präsentationsdaten: Ergebnisse bleiben auch nach einem Neustart nachvollziehbar.
     public static final LocalDate DEMO_DATE = LocalDate.of(2026, 11, 16);
     private static final String SEED_ID = "payments-statistics-demo-v1";
 
