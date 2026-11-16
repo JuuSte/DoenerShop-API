@@ -2,6 +2,8 @@ package at.htl.donershop.Controllers;
 
 import at.htl.donershop.Entities.Customer;
 import at.htl.donershop.Entities.Order;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
@@ -18,7 +20,11 @@ public class OrderController {
     @PersistenceContext
     private EntityManager em;
 
-    public record OrderRequest(Long customerId, String status) {}
+    public record OrderRequest(
+            @Schema(description = "ID eines vorhandenen Kunden: zuerst POST /api/kunden oder GET /api/kunden verwenden.", example = "1")
+            Long customerId,
+            @Schema(description = "Optional; Standardwert ist OPEN. COMPLETED kennzeichnet eine abgeschlossene Bestellung.", example = "OPEN")
+            String status) {}
 
     @GetMapping
     public List<Order> getAllOrders() {
@@ -41,9 +47,16 @@ public class OrderController {
     }
 
     @PostMapping
+    @Operation(description = "Erstellt eine Bestellung für einen vorhandenen Kunden. Bei unbekannter customerId wird 404 zurückgegeben (Kunde nicht gefunden).")
     @Transactional
     @ResponseStatus(HttpStatus.CREATED)
     public Order createOrder(@RequestBody OrderRequest request) {
+
+        if (request.customerId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "customerId muss angegeben werden"
+            );
+        }
 
         Customer customer = em.find(Customer.class, request.customerId());
 
