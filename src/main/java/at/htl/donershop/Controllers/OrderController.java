@@ -1,3 +1,4 @@
+
 package at.htl.donershop.Controllers;
 
 import at.htl.donershop.Entities.Customer;
@@ -7,10 +8,12 @@ import at.htl.donershop.Entities.Order_Item_Custom;
 import at.htl.donershop.Entities.ProductIngredient;
 import at.htl.donershop.Entities.Inventory;
 import at.htl.donershop.Entities.Ingredient;
+
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -41,7 +44,8 @@ public class OrderController {
 
         if (order == null) {
             throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "Bestellung nicht gefunden"
+                    HttpStatus.NOT_FOUND,
+                    "Bestellung nicht gefunden"
             );
         }
 
@@ -53,21 +57,29 @@ public class OrderController {
     @ResponseStatus(HttpStatus.CREATED)
     public Order createOrder(@RequestBody OrderRequest request) {
 
-        Customer customer = em.find(Customer.class, request.customerId());
+        Customer customer = em.find(
+                Customer.class, request.customerId()
+        );
 
         if (customer == null) {
             throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "Kunde nicht gefunden"
+                    HttpStatus.NOT_FOUND,
+                    "Kunde nicht gefunden"
             );
         }
 
         Order order = new Order(customer);
 
-        if (request.status() != null && !request.status().isBlank()
+        if (request.status() != null
+                && !request.status().isBlank()
                 && !"OPEN".equalsIgnoreCase(request.status())) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Eine neue Bestellung muss mit dem Status OPEN erstellt werden");
+                    "Eine neue Bestellung muss mit dem Status OPEN erstellt werden"
+            );
+        }
+
         if (request.status() != null && !request.status().isBlank()) {
             order.setStatus(request.status());
         }
@@ -82,39 +94,50 @@ public class OrderController {
     @Transactional
     public Order updateOrder(
             @PathVariable Long id,
-            @RequestBody OrderRequest request
-    ) {
+            @RequestBody OrderRequest request) {
+
         Order order = getOrderById(id);
 
         if (!"OPEN".equalsIgnoreCase(order.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Eine bestätigte Bestellung kann nicht mehr geändert werden");
+                    "Eine bestätigte Bestellung kann nicht mehr geändert werden"
+            );
         }
 
         if ("CONFIRMED".equalsIgnoreCase(request.status())) {
+
             if (request.customerId() != null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Kunde und Bestellstatus bitte getrennt ändern");
+                        "Kunde und Bestellstatus bitte getrennt ändern"
+                );
             }
+
             confirm(order);
             return order;
         }
 
-        if (request.status() != null && !"OPEN".equalsIgnoreCase(request.status())) {
+        if (request.status() != null
+                && !"OPEN".equalsIgnoreCase(request.status())) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Zum Bestätigen bitte POST /api/orders/{id}/confirm verwenden");
+                    "Zum Bestätigen bitte POST /api/orders/{id}/confirm verwenden"
+            );
         }
 
         if (request.customerId() != null) {
-            Customer customer = em.find(Customer.class, request.customerId());
+
+            Customer customer = em.find(
+                    Customer.class, request.customerId()
+            );
+
             if (customer == null) {
                 throw new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Kunde nicht gefunden"
+                        HttpStatus.NOT_FOUND,
+                        "Kunde nicht gefunden"
                 );
-                        HttpStatus.NOT_FOUND, "Kunde nicht gefunden");
             }
 
             order.setKunde(customer);
@@ -127,98 +150,151 @@ public class OrderController {
         return order;
     }
 
-    /** Bestätigt eine Bestellung und zieht die benötigten Zutaten einmalig vom Lager ab. */
+    /**
+     * Bestätigt eine Bestellung und zieht die benötigten Zutaten
+     * einmalig vom Lager ab.
+     */
     @PostMapping("/{id}/confirm")
     @Transactional
     public Order confirmOrder(@PathVariable Long id) {
+
         Order order = getOrderById(id);
+
         confirm(order);
+
         return order;
     }
 
     private void confirm(Order order) {
-        // Sperrt die Bestellung selbst, damit parallele Bestätigungen nicht doppelt abbuchen.
+
+        // Bestellung sperren
         em.lock(order, LockModeType.PESSIMISTIC_WRITE);
         em.refresh(order);
 
         if (!"OPEN".equalsIgnoreCase(order.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Die Bestellung ist nicht mehr offen oder wurde bereits bestätigt");
+                    "Die Bestellung ist nicht mehr offen oder wurde bereits bestätigt"
+            );
         }
 
-        // Benötigte Mengen je Zutat sammeln (auch wenn mehrere Produkte dieselbe Zutat verwenden).
+        // Benötigte Zutaten sammeln
         Map<Long, Double> required = new LinkedHashMap<>();
         Map<Long, Ingredient> ingredients = new LinkedHashMap<>();
 
         for (Order_Item item : order.getItems()) {
-            addRequiredIngredients(item.getProduct().getId(), item.getQuantity(), required, ingredients);
+            addRequiredIngredients(
+                    item.getProduct().getId(),
+                    item.getQuantity(),
+                    required,
+                    ingredients
+            );
         }
+
         for (Order_Item_Custom item : order.getCustomItems()) {
-            addRequiredIngredients(item.getProduct().getId(), item.getQuantity(), required, ingredients);
+            addRequiredIngredients(
+                    item.getProduct().getId(),
+                    item.getQuantity(),
+                    required,
+                    ingredients
+            );
         }
 
         if (required.isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Die Bestellung enthält keine Produkte mit hinterlegten Zutaten");
+                    "Die Bestellung enthält keine Produkte mit hinterlegten Zutaten"
+            );
         }
 
-        // Alle Lagerzeilen zuerst sperren und prüfen. Erst danach werden Mengen verändert.
+        // Lagerbestände prüfen und sperren
         Map<Long, Inventory> stocks = new LinkedHashMap<>();
+
         for (Map.Entry<Long, Double> entry : required.entrySet()) {
+
             List<Inventory> found = em.createQuery(
-                    "SELECT i FROM Inventory i WHERE i.ingredient.id = :ingredientId",
-                    Inventory.class)
+                            "SELECT i FROM Inventory i WHERE i.ingredient.id = :ingredientId",
+                            Inventory.class
+                    )
                     .setParameter("ingredientId", entry.getKey())
                     .setLockMode(LockModeType.PESSIMISTIC_WRITE)
                     .getResultList();
 
             Ingredient ingredient = ingredients.get(entry.getKey());
+
             if (found.isEmpty()) {
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,
-                        "Kein Lagerbestand für Zutat '" + ingredient.getName() + "' vorhanden");
+                        "Kein Lagerbestand für Zutat '"
+                                + ingredient.getName() + "' vorhanden"
+                );
             }
 
             Inventory stock = found.get(0);
+
             if (stock.getQuantity() < entry.getValue()) {
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,
-                        "Nicht genügend " + ingredient.getName() + " auf Lager. Benötigt: "
-                                + entry.getValue() + ", vorhanden: " + stock.getQuantity());
+                        "Nicht genügend " + ingredient.getName()
+                                + " auf Lager. Benötigt: "
+                                + entry.getValue()
+                                + ", vorhanden: " + stock.getQuantity()
+                );
             }
+
             stocks.put(entry.getKey(), stock);
         }
 
+        // Lagerbestände reduzieren
         for (Map.Entry<Long, Double> entry : required.entrySet()) {
+
             Inventory stock = stocks.get(entry.getKey());
-            stock.setQuantity(stock.getQuantity() - entry.getValue());
+
+            stock.setQuantity(
+                    stock.getQuantity() - entry.getValue()
+            );
         }
 
         order.setStatus("CONFIRMED");
+
         em.flush();
     }
 
-    private void addRequiredIngredients(Long productId, int productCount,
-                                        Map<Long, Double> required,
-                                        Map<Long, Ingredient> ingredients) {
+    private void addRequiredIngredients(
+            Long productId,
+            int productCount,
+            Map<Long, Double> required,
+            Map<Long, Ingredient> ingredients) {
+
         List<ProductIngredient> recipe = em.createQuery(
-                "SELECT pi FROM ProductIngredient pi WHERE pi.product.id = :productId",
-                ProductIngredient.class)
+                        "SELECT pi FROM ProductIngredient pi WHERE pi.product.id = :productId",
+                        ProductIngredient.class
+                )
                 .setParameter("productId", productId)
                 .getResultList();
 
         if (recipe.isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Für Produkt mit ID " + productId + " ist kein Rezept hinterlegt");
+                    "Für Produkt mit ID " + productId
+                            + " ist kein Rezept hinterlegt"
+            );
         }
 
         for (ProductIngredient line : recipe) {
+
             Long ingredientId = line.getIngredient().getId();
-            required.merge(ingredientId, line.getQuantity() * productCount, Double::sum);
-            ingredients.put(ingredientId, line.getIngredient());
+
+            required.merge(
+                    ingredientId,
+                    line.getQuantity() * productCount,
+                    Double::sum
+            );
+
+            ingredients.put(
+                    ingredientId,
+                    line.getIngredient()
+            );
         }
     }
 
@@ -226,12 +302,16 @@ public class OrderController {
     @Transactional
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteOrder(@PathVariable Long id) {
+
         Order order = getOrderById(id);
+
         if (!"OPEN".equalsIgnoreCase(order.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Eine bestätigte Bestellung kann nicht gelöscht werden");
+                    "Eine bestätigte Bestellung kann nicht gelöscht werden"
+            );
         }
+
         em.remove(order);
     }
 }
