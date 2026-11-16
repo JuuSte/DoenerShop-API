@@ -10,6 +10,8 @@ import java.util.List;
 @Entity
 @Table(name = "customer_order")
 public class Order {
+    // Gemeinsame Konvention; freie Statuswerte bleiben weiterhin erlaubt.
+    public static final String COMPLETED = "COMPLETED";
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
