@@ -6,6 +6,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -24,9 +25,12 @@ public class CustomerController {
 
     @GetMapping("/{id}")
     public Customer getCustomerById(@PathVariable("id") Long id){
-        return em.createQuery("select c from Customer c where c.id = :Id", Customer.class)
-                .setParameter("Id", id)
-                .getSingleResult();
+        Customer customer = em.find(Customer.class, id);
+        if (customer == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Kunde nicht gefunden");
+        }
+        return customer;
     }
 
     @PostMapping
